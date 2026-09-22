@@ -67,7 +67,7 @@ export class Model {
   }
 
   /**
-   * 音声を再生し、リップシンクを行う
+   * 音声を再生し、リップシンクを行う (ArrayBuffer — real audio from VOICEVOX or other TTS)
    */
   public async speak(buffer: ArrayBuffer, screenplay: Screenplay) {
     this.emoteController?.playEmotion(screenplay.expression);
@@ -75,6 +75,76 @@ export class Model {
       this._lipSync?.playFromArrayBuffer(buffer, () => {
         resolve(true);
       });
+    });
+  }
+
+  /**
+   * Web Speech API fallback — simulate lip-sync without ArrayBuffer.
+   * Oscillates the mouth morph target during speech for visual feedback.
+   */
+  public async speakWithWebSpeech(
+    text: string,
+    screenplay: Screenplay
+  ): Promise<void> {
+    this.emoteController?.playEmotion(screenplay.expression);
+
+    return new Promise((resolve) => {
+      if (typeof window === "undefined" || !window.speechSynthesis) {
+        resolve();
+        return;
+      }
+
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "ja-JP";
+      utterance.rate = 1.0;
+      utterance.pitch = 1.1;
+      utterance.volume = 1.0;
+
+      // Try to find a Japanese voice
+      const voices = window.speechSynthesis.getVoices();
+      const japaneseVoice = voices.find(
+        (v) => v.lang === "ja-JP" || v.lang.startsWith("ja")
+      );
+      if (japaneseVoice) {
+        utterance.voice = japaneseVoice;
+      }
+
+      // Simulated lip-sync: oscillate mouth while speaking
+      let lipSyncInterval: ReturnType<typeof setInterval> | null = null;
+      let phase = 0;
+
+      utterance.onstart = () => {
+        lipSyncInterval = setInterval(() => {
+          phase += 0.3;
+          // Create a pseudo-random mouth movement pattern
+          const volume = Math.abs(Math.sin(phase)) * 0.6 + Math.random() * 0.3;
+          this.emoteController?.lipSync("aa", volume);
+        }, 50); // ~20fps lip movement
+      };
+
+      utterance.onend = () => {
+        if (lipSyncInterval) {
+          clearInterval(lipSyncInterval);
+          lipSyncInterval = null;
+        }
+        // Close mouth
+        this.emoteController?.lipSync("aa", 0);
+        resolve();
+      };
+
+      utterance.onerror = () => {
+        if (lipSyncInterval) {
+          clearInterval(lipSyncInterval);
+          lipSyncInterval = null;
+        }
+        this.emoteController?.lipSync("aa", 0);
+        resolve();
+      };
+
+      window.speechSynthesis.speak(utterance);
     });
   }
 

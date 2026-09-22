@@ -1,219 +1,340 @@
 import { useCallback, useContext, useEffect, useState } from "react";
 import VrmViewer from "@/components/vrmViewer";
 import { ViewerContext } from "@/features/vrmViewer/viewerContext";
-import {
-  Message,
-  textsToScreenplay,
-  Screenplay,
-} from "@/features/messages/messages";
+import { Message, Screenplay } from "@/features/messages/messages";
 import { speakCharacter } from "@/features/messages/speakCharacter";
 import { MessageInputContainer } from "@/components/messageInputContainer";
 import { SYSTEM_PROMPT } from "@/features/constants/systemPromptConstants";
-import { KoeiroParam, DEFAULT_PARAM } from "@/features/constants/koeiroParam";
-import { getChatResponseStream } from "@/features/chat/openAiChat";
+import { getChatResponse, getHintKeywords } from "@/features/chat/openAiChat";
 import { Introduction } from "@/components/introduction";
 import { Menu } from "@/components/menu";
-import { GitHubLink } from "@/components/githubLink";
 import { Meta } from "@/components/meta";
+import { HintModal } from "@/components/HintModal";
+import { PostGameSummary } from "@/components/PostGameSummary";
 
 export default function Home() {
   const { viewer } = useContext(ViewerContext);
 
   const [systemPrompt, setSystemPrompt] = useState(SYSTEM_PROMPT);
   const [openAiKey, setOpenAiKey] = useState("");
-  const [koeiromapKey, setKoeiromapKey] = useState("");
-  const [koeiroParam, setKoeiroParam] = useState<KoeiroParam>(DEFAULT_PARAM);
   const [chatProcessing, setChatProcessing] = useState(false);
   const [chatLog, setChatLog] = useState<Message[]>([]);
   const [assistantMessage, setAssistantMessage] = useState("");
 
+  // Game states
+  const [affection, setAffection] = useState(100);
+  const [timerActive, setTimerActive] = useState(false);
+  const [timerResetKey, setTimerResetKey] = useState(0);
+  const [hintKeywords, setHintKeywords] = useState<string[]>([]);
+  const [isHintOpen, setIsHintOpen] = useState(false);
+  const [isHintLoading, setIsHintLoading] = useState(false);
+
+  // Track mistake history and turn count
+  type Mistake = {
+    wrong: string;
+    correct: string;
+    detail: string;
+  };
+  const [mistakeHistory, setMistakeHistory] = useState<Mistake[]>([]);
+  const [turnCount, setTurnCount] = useState(0);
+  const [gameResult, setGameResult] = useState<"Win" | "Lose" | null>(null);
+
+  // Load persisted params + API key
   useEffect(() => {
-    if (window.localStorage.getItem("chatVRMParams")) {
-      const params = JSON.parse(
-        window.localStorage.getItem("chatVRMParams") as string
-      );
-      setSystemPrompt(params.systemPrompt ?? SYSTEM_PROMPT);
-      setKoeiroParam(params.koeiroParam ?? DEFAULT_PARAM);
-      setChatLog(params.chatLog ?? []);
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem("chatVRMParams");
+      if (stored) {
+        try {
+          const params = JSON.parse(stored);
+          setSystemPrompt(params.systemPrompt ?? SYSTEM_PROMPT);
+          setChatLog(params.chatLog ?? []);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      const apiKey = window.localStorage.getItem("chatVRMApiKey");
+      if (apiKey) setOpenAiKey(apiKey);
     }
   }, []);
 
   useEffect(() => {
-    process.nextTick(() =>
+    if (typeof window !== "undefined") {
       window.localStorage.setItem(
         "chatVRMParams",
-        JSON.stringify({ systemPrompt, koeiroParam, chatLog })
-      )
-    );
-  }, [systemPrompt, koeiroParam, chatLog]);
+        JSON.stringify({ systemPrompt, chatLog })
+      );
+    }
+  }, [systemPrompt, chatLog]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && openAiKey) {
+      window.localStorage.setItem("chatVRMApiKey", openAiKey);
+    }
+  }, [openAiKey]);
 
   const handleChangeChatLog = useCallback(
     (targetIndex: number, text: string) => {
-      const newChatLog = chatLog.map((v: Message, i) => {
-        return i === targetIndex ? { role: v.role, content: text } : v;
-      });
-
-      setChatLog(newChatLog);
+      const newLog = chatLog.map((v, i) =>
+        i === targetIndex ? { role: v.role, content: text } : v
+      );
+      setChatLog(newLog);
     },
     [chatLog]
   );
 
-  /**
-   * 文ごとに音声を直列でリクエストしながら再生する
-   */
   const handleSpeakAi = useCallback(
     async (
       screenplay: Screenplay,
       onStart?: () => void,
       onEnd?: () => void
     ) => {
-      speakCharacter(screenplay, viewer, koeiromapKey, onStart, onEnd);
+      speakCharacter(screenplay, viewer, onStart, onEnd);
     },
-    [viewer, koeiromapKey]
+    [viewer]
   );
 
-  /**
-   * アシスタントとの会話を行う
-   */
   const handleSendChat = useCallback(
-    async (text: string) => {
+    async (text: string, isAutoTimeout: boolean = false) => {
       if (!openAiKey) {
-        setAssistantMessage("APIキーが入力されていません");
+        setAssistantMessage("Vui lòng nhập API Key.");
         return;
       }
+      if (!text) return;
 
-      const newMessage = text;
-
-      if (newMessage == null) return;
-
+      // Stop timer while processing
+      setTimerActive(false);
       setChatProcessing(true);
-      // ユーザーの発言を追加して表示
-      const messageLog: Message[] = [
-        ...chatLog,
-        { role: "user", content: newMessage },
-      ];
-      setChatLog(messageLog);
 
-      // Chat GPTへ
+      const newLog: Message[] = [...chatLog, { role: "user", content: text }];
+      setChatLog(newLog);
+
       const messages: Message[] = [
-        {
-          role: "system",
-          content: systemPrompt,
-        },
-        ...messageLog,
+        { role: "system", content: systemPrompt },
+        ...newLog,
       ];
 
-      const stream = await getChatResponseStream(messages, openAiKey).catch(
-        (e) => {
-          console.error(e);
-          return null;
-        }
-      );
-      if (stream == null) {
-        setChatProcessing(false);
-        return;
-      }
-
-      const reader = stream.getReader();
-      let receivedMessage = "";
-      let aiTextLog = "";
-      let tag = "";
-      const sentences = new Array<string>();
       try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        const result = await getChatResponse(messages, openAiKey);
+        if (!result) return;
 
-          receivedMessage += value;
-
-          // 返答内容のタグ部分の検出
-          const tagMatch = receivedMessage.match(/^\[(.*?)\]/);
-          if (tagMatch && tagMatch[0]) {
-            tag = tagMatch[0];
-            receivedMessage = receivedMessage.slice(tag.length);
-          }
-
-          // 返答を一文単位で切り出して処理する
-          const sentenceMatch = receivedMessage.match(
-            /^(.+[。．！？\n]|.{10,}[、,])/
-          );
-          if (sentenceMatch && sentenceMatch[0]) {
-            const sentence = sentenceMatch[0];
-            sentences.push(sentence);
-            receivedMessage = receivedMessage
-              .slice(sentence.length)
-              .trimStart();
-
-            // 発話不要/不可能な文字列だった場合はスキップ
-            if (
-              !sentence.replace(
-                /^[\s\[\(\{「［（【『〈《〔｛«‹〘〚〛〙›»〕》〉』】）］」\}\)\]]+$/g,
-                ""
-              )
-            ) {
-              continue;
-            }
-
-            const aiText = `${tag} ${sentence}`;
-            const aiTalks = textsToScreenplay([aiText], koeiroParam);
-            aiTextLog += aiText;
-
-            // 文ごとに音声を生成 & 再生、返答を表示
-            const currentAssistantMessage = sentences.join(" ");
-            handleSpeakAi(aiTalks[0], () => {
-              setAssistantMessage(currentAssistantMessage);
-            });
-          }
+        let data: any = {};
+        try {
+          data = JSON.parse(result.message);
+        } catch (e) {
+          console.error("JSON parse error", e);
+          data = {
+            npc_reply: result.message,
+            affection_change: isAutoTimeout ? -10 : 0,
+            expression: isAutoTimeout ? "angry" : "neutral",
+            user_mistakes: null,
+          };
         }
+
+        const { npc_reply, affection_change, expression, user_mistakes } = data;
+
+        // Update affection
+        setAffection((prev) => {
+          const delta = isAutoTimeout ? -10 : (affection_change ?? 0);
+          return Math.max(0, Math.min(100, prev + delta));
+        });
+
+        // Record mistakes if present
+        if (user_mistakes && user_mistakes.has_error) {
+          const entry: Mistake = {
+            wrong: user_mistakes.wrong || "",
+            correct: user_mistakes.correct || "",
+            detail: user_mistakes.detail || "",
+          };
+          setMistakeHistory((h) => [...h, entry]);
+        }
+
+        // Build NPC screenplay
+        const npcScreenplay: Screenplay = {
+          expression: (expression ||
+            (isAutoTimeout ? "angry" : "neutral")) as any,
+          talk: {
+            style:
+              expression === "angry" || isAutoTimeout ? "angry" : "talk",
+            speakerX: 0,
+            speakerY: 0,
+            message: npc_reply,
+          },
+        };
+
+        setAssistantMessage(npc_reply);
+        // Speak and restart timer after speech ends
+        handleSpeakAi(
+          npcScreenplay,
+          () => setAssistantMessage(npc_reply),
+          () => {
+            // Increment turn count only after NPC finishes speaking
+            setTurnCount((c) => c + 1);
+            setTimerResetKey((k) => k + 1);
+            setTimerActive(true);
+          }
+        );
+
+        const assistantMsg: Message = {
+          role: "assistant",
+          content: npc_reply,
+        };
+        setChatLog([...newLog, assistantMsg]);
       } catch (e) {
-        setChatProcessing(false);
         console.error(e);
       } finally {
-        reader.releaseLock();
+        setChatProcessing(false);
       }
-
-      // アシスタントの返答をログに追加
-      const messageLogAssistant: Message[] = [
-        ...messageLog,
-        { role: "assistant", content: aiTextLog },
-      ];
-
-      setChatLog(messageLogAssistant);
-      setChatProcessing(false);
     },
-    [systemPrompt, chatLog, handleSpeakAi, openAiKey, koeiroParam]
+    [systemPrompt, chatLog, handleSpeakAi, openAiKey]
   );
 
+  // Timer timeout -> user silent
+  const handleTimerTimeout = useCallback(() => {
+    if (chatProcessing) return;
+    handleSendChat("[USER_SILENT]", true);
+  }, [chatProcessing, handleSendChat]);
+
+  // Hint button handler
+  const handleHint = useCallback(async () => {
+    if (!openAiKey) {
+      alert("Vui lòng nhập API Key.");
+      return;
+    }
+    setTimerActive(false);
+    setAffection((p) => Math.max(0, p - 5));
+    setIsHintOpen(true);
+    setIsHintLoading(true);
+    try {
+      const keywords = await getHintKeywords(chatLog, openAiKey);
+      setHintKeywords(keywords);
+    } catch (e) {
+      console.error(e);
+      setHintKeywords([
+        "承知いたしました",
+        "かしこまりました",
+        "申し訳ございません",
+      ]);
+    } finally {
+      setIsHintLoading(false);
+    }
+  }, [chatLog, openAiKey]);
+
+  const handleCloseHint = useCallback(() => {
+    setIsHintOpen(false);
+    setTimerActive(true);
+  }, []);
+
+  const handleSelectKeyword = useCallback(
+    (kw: string) => {
+      setIsHintOpen(false);
+      const clean = kw.split("(")[0].trim();
+      handleSendChat(clean);
+    },
+    [handleSendChat]
+  );
+
+  // Detect game end conditions
+  useEffect(() => {
+    if (gameResult) return;
+    if (affection <= 0) {
+      setGameResult("Lose");
+      setTimerActive(false);
+    } else if (turnCount >= 5) {
+      setGameResult("Win");
+      setTimerActive(false);
+    }
+  }, [affection, turnCount, gameResult]);
+
+  // Restart handler
+  const handleRestart = useCallback(() => {
+    setAffection(100);
+    setTimerActive(false);
+    setTimerResetKey(0);
+    setChatLog([]);
+    setAssistantMessage("");
+    setMistakeHistory([]);
+    setTurnCount(0);
+    setGameResult(null);
+    setHintKeywords([]);
+    setIsHintOpen(false);
+  }, []);
+
+  // Render UI – hide main chat when game ended
+  const inGame = gameResult === null;
+
   return (
-    <div className={"font-M_PLUS_2"}>
+    <div className="font-M_PLUS_2">
       <Meta />
-      <Introduction
-        openAiKey={openAiKey}
-        koeiroMapKey={koeiromapKey}
-        onChangeAiKey={setOpenAiKey}
-        onChangeKoeiromapKey={setKoeiromapKey}
-      />
+      <Introduction openAiKey={openAiKey} onChangeAiKey={setOpenAiKey} />
       <VrmViewer />
-      <MessageInputContainer
-        isChatProcessing={chatProcessing}
-        onChatProcessStart={handleSendChat}
-      />
-      <Menu
-        openAiKey={openAiKey}
-        systemPrompt={systemPrompt}
-        chatLog={chatLog}
-        koeiroParam={koeiroParam}
-        assistantMessage={assistantMessage}
-        koeiromapKey={koeiromapKey}
-        onChangeAiKey={setOpenAiKey}
-        onChangeSystemPrompt={setSystemPrompt}
-        onChangeChatLog={handleChangeChatLog}
-        onChangeKoeiromapParam={setKoeiroParam}
-        handleClickResetChatLog={() => setChatLog([])}
-        handleClickResetSystemPrompt={() => setSystemPrompt(SYSTEM_PROMPT)}
-        onChangeKoeiromapKey={setKoeiromapKey}
-      />
-      <GitHubLink />
+
+      {/* ===== Visual Novel Dialog Box (NPC subtitle) ===== */}
+      {assistantMessage && inGame && (
+        <div className="fixed bottom-36 left-1/2 -translate-x-1/2 z-10 w-11/12 max-w-2xl animate-fade-in pointer-events-none">
+          <div className="relative bg-black/80 backdrop-blur-sm border border-white/10 rounded-2xl p-5 shadow-2xl">
+            {/* Character name badge */}
+            <div className="absolute -top-3 left-5">
+              <span className="inline-block bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-extrabold px-4 py-1 rounded-full shadow-lg">
+                山田部長
+              </span>
+            </div>
+            {/* Dialog text */}
+            <div className="mt-1 text-white text-sm leading-relaxed font-medium">
+              {assistantMessage}
+            </div>
+            {/* Decorative bottom dots (typing indicator style) */}
+            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+              <div className="w-2 h-2 rounded-full bg-white/30" />
+              <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Game UI */}
+      {inGame ? (
+        <>
+          <MessageInputContainer
+            isChatProcessing={chatProcessing}
+            onChatProcessStart={(t) => handleSendChat(t)}
+            affection={affection}
+            timerActive={timerActive}
+            timerResetKey={timerResetKey}
+            onTimerTimeout={handleTimerTimeout}
+            onHint={handleHint}
+          />
+          <HintModal
+            isOpen={isHintOpen}
+            isLoading={isHintLoading}
+            keywords={hintKeywords}
+            onClose={handleCloseHint}
+            onSelectKeyword={handleSelectKeyword}
+          />
+          <Menu
+            openAiKey={openAiKey}
+            systemPrompt={systemPrompt}
+            chatLog={chatLog}
+            assistantMessage={assistantMessage}
+            onChangeAiKey={setOpenAiKey}
+            onChangeSystemPrompt={setSystemPrompt}
+            onChangeChatLog={handleChangeChatLog}
+            handleClickResetChatLog={() => {
+              setChatLog([]);
+              setAffection(100);
+              setTimerActive(false);
+            }}
+            handleClickResetSystemPrompt={() => setSystemPrompt(SYSTEM_PROMPT)}
+          />
+        </>
+      ) : (
+        <PostGameSummary
+          result={gameResult!}
+          affection={affection}
+          mistakes={mistakeHistory}
+          onRestart={handleRestart}
+        />
+      )}
     </div>
   );
 }

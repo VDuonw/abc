@@ -1,8 +1,7 @@
 import { wait } from "@/utils/wait";
-import { synthesizeVoiceApi } from "./synthesizeVoice";
+import { synthesizeSpeech } from "../tts/ttsService";
 import { Viewer } from "../vrmViewer/viewer";
 import { Screenplay } from "./messages";
-import { Talk } from "./messages";
 
 const createSpeakCharacter = () => {
   let lastTime = 0;
@@ -12,7 +11,6 @@ const createSpeakCharacter = () => {
   return (
     screenplay: Screenplay,
     viewer: Viewer,
-    koeiroApiKey: string,
     onStart?: () => void,
     onComplete?: () => void
   ) => {
@@ -22,7 +20,7 @@ const createSpeakCharacter = () => {
         await wait(1000 - (now - lastTime));
       }
 
-      const buffer = await fetchAudio(screenplay.talk, koeiroApiKey).catch(
+      const buffer = await synthesizeSpeech(screenplay.talk.message).catch(
         () => null
       );
       lastTime = Date.now();
@@ -31,12 +29,19 @@ const createSpeakCharacter = () => {
 
     prevFetchPromise = fetchPromise;
     prevSpeakPromise = Promise.all([fetchPromise, prevSpeakPromise]).then(
-      ([audioBuffer]) => {
+      async ([audioBuffer]) => {
         onStart?.();
-        if (!audioBuffer) {
-          return;
+
+        if (audioBuffer) {
+          // VOICEVOX returned audio — use real lip-sync
+          return viewer.model?.speak(audioBuffer, screenplay);
+        } else {
+          // Fallback — Web Speech API with simulated lip-sync
+          return viewer.model?.speakWithWebSpeech(
+            screenplay.talk.message,
+            screenplay
+          );
         }
-        return viewer.model?.speak(audioBuffer, screenplay);
       }
     );
     prevSpeakPromise.then(() => {
@@ -46,25 +51,3 @@ const createSpeakCharacter = () => {
 };
 
 export const speakCharacter = createSpeakCharacter();
-
-export const fetchAudio = async (
-  talk: Talk,
-  apiKey: string
-): Promise<ArrayBuffer> => {
-  const ttsVoice = await synthesizeVoiceApi(
-    talk.message,
-    talk.speakerX,
-    talk.speakerY,
-    talk.style,
-    apiKey
-  );
-  const url = ttsVoice.audio;
-
-  if (url == null) {
-    throw new Error("Something went wrong");
-  }
-
-  const resAudio = await fetch(url);
-  const buffer = await resAudio.arrayBuffer();
-  return buffer;
-};

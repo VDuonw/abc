@@ -1,41 +1,32 @@
 import { IconButton } from "./iconButton";
 import { Message } from "@/features/messages/messages";
-import { KoeiroParam } from "@/features/constants/koeiroParam";
 import { ChatLog } from "./chatLog";
 import React, { useCallback, useContext, useRef, useState } from "react";
 import { Settings } from "./settings";
 import { ViewerContext } from "@/features/vrmViewer/viewerContext";
-import { AssistantText } from "./assistantText";
 
 type Props = {
   openAiKey: string;
   systemPrompt: string;
   chatLog: Message[];
-  koeiroParam: KoeiroParam;
   assistantMessage: string;
-  koeiromapKey: string;
   onChangeSystemPrompt: (systemPrompt: string) => void;
   onChangeAiKey: (key: string) => void;
   onChangeChatLog: (index: number, text: string) => void;
-  onChangeKoeiromapParam: (param: KoeiroParam) => void;
   handleClickResetChatLog: () => void;
   handleClickResetSystemPrompt: () => void;
-  onChangeKoeiromapKey: (key: string) => void;
 };
+
 export const Menu = ({
   openAiKey,
   systemPrompt,
   chatLog,
-  koeiroParam,
   assistantMessage,
-  koeiromapKey,
   onChangeSystemPrompt,
   onChangeAiKey,
   onChangeChatLog,
-  onChangeKoeiromapParam,
   handleClickResetChatLog,
   handleClickResetSystemPrompt,
-  onChangeKoeiromapKey,
 }: Props) => {
   const [showSettings, setShowSettings] = useState(false);
   const [showChatLog, setShowChatLog] = useState(false);
@@ -54,23 +45,6 @@ export const Menu = ({
       onChangeAiKey(event.target.value);
     },
     [onChangeAiKey]
-  );
-
-  const handleChangeKoeiromapKey = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      onChangeKoeiromapKey(event.target.value);
-    },
-    [onChangeKoeiromapKey]
-  );
-
-  const handleChangeKoeiroParam = useCallback(
-    (x: number, y: number) => {
-      onChangeKoeiromapParam({
-        speakerX: x,
-        speakerY: y,
-      });
-    },
-    [onChangeKoeiromapParam]
   );
 
   const handleClickOpenVrmFile = useCallback(() => {
@@ -100,53 +74,62 @@ export const Menu = ({
 
   return (
     <>
-      <div className="absolute z-10 m-24">
-        <div className="grid grid-flow-col gap-[8px]">
-          <IconButton
-            iconName="24/Menu"
-            label="設定"
-            isProcessing={false}
+      {/* Top-right gear button */}
+      <div className="fixed top-4 left-4 z-30">
+        <div className="flex gap-2">
+          {/* Gear Settings button */}
+          <button
             onClick={() => setShowSettings(true)}
-          ></IconButton>
-          {showChatLog ? (
-            <IconButton
-              iconName="24/CommentOutline"
-              label="会話ログ"
-              isProcessing={false}
-              onClick={() => setShowChatLog(false)}
-            />
-          ) : (
-            <IconButton
-              iconName="24/CommentFill"
-              label="会話ログ"
-              isProcessing={false}
-              disabled={chatLog.length <= 0}
-              onClick={() => setShowChatLog(true)}
-            />
+            className="w-11 h-11 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 backdrop-blur-md flex items-center justify-center text-white/70 hover:text-white transition-all duration-200 shadow-lg hover:shadow-xl group"
+            title="Cài đặt"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="group-hover:rotate-90 transition-transform duration-500"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
+
+          {/* Chat log toggle */}
+          {chatLog.length > 0 && (
+            <button
+              onClick={() => setShowChatLog(!showChatLog)}
+              className={`w-11 h-11 rounded-xl border border-white/15 backdrop-blur-md flex items-center justify-center text-white/70 hover:text-white transition-all duration-200 shadow-lg hover:shadow-xl ${
+                showChatLog ? "bg-white/20" : "bg-white/10 hover:bg-white/20"
+              }`}
+              title="Lịch sử hội thoại"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </button>
           )}
         </div>
       </div>
+
       {showChatLog && <ChatLog messages={chatLog} />}
       {showSettings && (
         <Settings
           openAiKey={openAiKey}
           chatLog={chatLog}
           systemPrompt={systemPrompt}
-          koeiroParam={koeiroParam}
-          koeiromapKey={koeiromapKey}
           onClickClose={() => setShowSettings(false)}
           onChangeAiKey={handleAiKeyChange}
           onChangeSystemPrompt={handleChangeSystemPrompt}
           onChangeChatLog={onChangeChatLog}
-          onChangeKoeiroParam={handleChangeKoeiroParam}
           onClickOpenVrmFile={handleClickOpenVrmFile}
           onClickResetChatLog={handleClickResetChatLog}
           onClickResetSystemPrompt={handleClickResetSystemPrompt}
-          onChangeKoeiromapKey={handleChangeKoeiromapKey}
         />
-      )}
-      {!showChatLog && assistantMessage && (
-        <AssistantText message={assistantMessage} />
       )}
       <input
         type="file"

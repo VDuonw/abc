@@ -2,222 +2,117 @@ import React from "react";
 import { IconButton } from "./iconButton";
 import { TextButton } from "./textButton";
 import { Message } from "@/features/messages/messages";
-import {
-  KoeiroParam,
-  PRESET_A,
-  PRESET_B,
-  PRESET_C,
-  PRESET_D,
-} from "@/features/constants/koeiroParam";
 import { Link } from "./link";
 
 type Props = {
   openAiKey: string;
   systemPrompt: string;
   chatLog: Message[];
-  koeiroParam: KoeiroParam;
-  koeiromapKey: string;
   onClickClose: () => void;
   onChangeAiKey: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onChangeSystemPrompt: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onChangeChatLog: (index: number, text: string) => void;
-  onChangeKoeiroParam: (x: number, y: number) => void;
   onClickOpenVrmFile: () => void;
   onClickResetChatLog: () => void;
   onClickResetSystemPrompt: () => void;
-  onChangeKoeiromapKey: (event: React.ChangeEvent<HTMLInputElement>) => void;
 };
+
 export const Settings = ({
   openAiKey,
   chatLog,
   systemPrompt,
-  koeiroParam,
-  koeiromapKey,
   onClickClose,
   onChangeSystemPrompt,
   onChangeAiKey,
   onChangeChatLog,
-  onChangeKoeiroParam,
   onClickOpenVrmFile,
   onClickResetChatLog,
   onClickResetSystemPrompt,
-  onChangeKoeiromapKey,
 }: Props) => {
   return (
-    <div className="absolute z-40 w-full h-full bg-white/80 backdrop-blur ">
-      <div className="absolute m-24">
-        <IconButton
-          iconName="24/Close"
-          isProcessing={false}
+    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-xl animate-fade-in">
+      {/* Close button */}
+      <div className="absolute top-6 left-6 z-50">
+        <button
           onClick={onClickClose}
-        ></IconButton>
+          className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white transition-all"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
       </div>
+
       <div className="max-h-full overflow-auto">
-        <div className="text-text1 max-w-3xl mx-auto px-24 py-64 ">
-          <div className="my-24 typography-32 font-bold">設定</div>
-          <div className="my-24">
-            <div className="my-16 typography-20 font-bold">OpenAI API キー</div>
+        <div className="max-w-3xl mx-auto px-6 py-16 text-white">
+          <h2 className="text-2xl font-extrabold text-gradient mb-8">⚙️ Cài đặt Game</h2>
+
+          {/* Gemini API Key */}
+          <div className="glass-card p-6 mb-6">
+            <h3 className="text-lg font-bold text-amber-300 mb-3">🔑 Gemini API Key</h3>
             <input
-              className="text-ellipsis px-16 py-8 w-col-span-2 bg-surface1 hover:bg-surface1-hover rounded-8"
-              type="text"
-              placeholder="sk-..."
+              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-amber-400/60 text-sm"
+              type="password"
+              placeholder="AIza..."
               value={openAiKey}
               onChange={onChangeAiKey}
             />
-            <div>
-              APIキーは
-              <Link
-                url="https://platform.openai.com/account/api-keys"
-                label="OpenAIのサイト"
-              />
-              で取得できます。取得したAPIキーをフォームに入力してください。
-            </div>
-            <div className="my-16">
-              ChatGPT
-              APIはブラウザから直接アクセスしています。また、APIキーや会話内容はピクシブのサーバには保存されません。
-              <br />
-              ※利用しているモデルはChatGPT API (GPT-3.5)です。
-            </div>
+            <p className="mt-2 text-xs text-white/40">
+              Lấy key miễn phí tại{" "}
+              <Link url="https://aistudio.google.com/apikey" label="Google AI Studio" />
+            </p>
           </div>
-          <div className="my-40">
-            <div className="my-16 typography-20 font-bold">
-              キャラクターモデル
-            </div>
-            <div className="my-8">
-              <TextButton onClick={onClickOpenVrmFile}>VRMを開く</TextButton>
-            </div>
+
+          {/* Character Model */}
+          <div className="glass-card p-6 mb-6">
+            <h3 className="text-lg font-bold text-purple-300 mb-3">🧑‍💼 Mô hình nhân vật</h3>
+            <TextButton onClick={onClickOpenVrmFile}>Mở file VRM</TextButton>
           </div>
-          <div className="my-40">
-            <div className="my-8">
-              <div className="my-16 typography-20 font-bold">
-                キャラクター設定（システムプロンプト）
-              </div>
+
+          {/* System Prompt */}
+          <div className="glass-card p-6 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-bold text-blue-300">📝 System Prompt</h3>
               <TextButton onClick={onClickResetSystemPrompt}>
-                キャラクター設定リセット
+                Reset
               </TextButton>
             </div>
-
             <textarea
               value={systemPrompt}
               onChange={onChangeSystemPrompt}
-              className="px-16 py-8  bg-surface1 hover:bg-surface1-hover h-168 rounded-8 w-full"
-            ></textarea>
+              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white/80 placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400/60 h-40 text-sm resize-y"
+            />
           </div>
-          <div className="my-40">
-            <div className="my-16 typography-20 font-bold">声の調整</div>
-            <div>
-              KoemotionのKoeiromap APIを使用しています。詳しくは
-              <Link
-                url="https://koemotion.rinna.co.jp"
-                label="https://koemotion.rinna.co.jp"
-              />
-              をご覧ください。
-            </div>
-            <div className="mt-16 font-bold">API キー</div>
-            <div className="mt-8">
-              <input
-                className="text-ellipsis px-16 py-8 w-col-span-2 bg-surface1 hover:bg-surface1-hover rounded-8"
-                type="text"
-                placeholder="..."
-                value={koeiromapKey}
-                onChange={onChangeKoeiromapKey}
-              />
-            </div>
 
-            <div className="mt-16 font-bold">プリセット</div>
-            <div className="my-8 grid grid-cols-2 gap-[8px]">
-              <TextButton
-                onClick={() =>
-                  onChangeKoeiroParam(PRESET_A.speakerX, PRESET_A.speakerY)
-                }
-              >
-                かわいい
-              </TextButton>
-              <TextButton
-                onClick={() =>
-                  onChangeKoeiroParam(PRESET_B.speakerX, PRESET_B.speakerY)
-                }
-              >
-                元気
-              </TextButton>
-              <TextButton
-                onClick={() =>
-                  onChangeKoeiroParam(PRESET_C.speakerX, PRESET_C.speakerY)
-                }
-              >
-                かっこいい
-              </TextButton>
-              <TextButton
-                onClick={() =>
-                  onChangeKoeiroParam(PRESET_D.speakerX, PRESET_D.speakerY)
-                }
-              >
-                渋い
-              </TextButton>
-            </div>
-            <div className="my-24">
-              <div className="select-none">x : {koeiroParam.speakerX}</div>
-              <input
-                type="range"
-                min={-10}
-                max={10}
-                step={0.001}
-                value={koeiroParam.speakerX}
-                className="mt-8 mb-16 input-range"
-                onChange={(e) => {
-                  onChangeKoeiroParam(
-                    Number(e.target.value),
-                    koeiroParam.speakerY
-                  );
-                }}
-              ></input>
-              <div className="select-none">y : {koeiroParam.speakerY}</div>
-              <input
-                type="range"
-                min={-10}
-                max={10}
-                step={0.001}
-                value={koeiroParam.speakerY}
-                className="mt-8 mb-16 input-range"
-                onChange={(e) => {
-                  onChangeKoeiroParam(
-                    koeiroParam.speakerX,
-                    Number(e.target.value)
-                  );
-                }}
-              ></input>
-            </div>
-          </div>
+          {/* Chat Log */}
           {chatLog.length > 0 && (
-            <div className="my-40">
-              <div className="my-8 grid-cols-2">
-                <div className="my-16 typography-20 font-bold">会話履歴</div>
+            <div className="glass-card p-6 mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-bold text-green-300">💬 Lịch sử hội thoại</h3>
                 <TextButton onClick={onClickResetChatLog}>
-                  会話履歴リセット
+                  Xóa lịch sử
                 </TextButton>
               </div>
-              <div className="my-8">
-                {chatLog.map((value, index) => {
-                  return (
-                    <div
-                      key={index}
-                      className="my-8 grid grid-flow-col  grid-cols-[min-content_1fr] gap-x-fixed"
-                    >
-                      <div className="w-[64px] py-8">
-                        {value.role === "assistant" ? "Character" : "You"}
-                      </div>
-                      <input
-                        key={index}
-                        className="bg-surface1 hover:bg-surface1-hover rounded-8 w-full px-16 py-8"
-                        type="text"
-                        value={value.content}
-                        onChange={(event) => {
-                          onChangeChatLog(index, event.target.value);
-                        }}
-                      ></input>
-                    </div>
-                  );
-                })}
+              <div className="space-y-2 max-h-60 overflow-auto scroll-hidden">
+                {chatLog.map((value, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-3"
+                  >
+                    <span className={`text-xs font-bold shrink-0 w-16 ${value.role === "assistant" ? "text-amber-400" : "text-blue-400"}`}>
+                      {value.role === "assistant" ? "NPC" : "You"}
+                    </span>
+                    <input
+                      className="flex-1 bg-white/5 hover:bg-white/10 rounded-lg px-3 py-2 text-sm text-white/70 border border-white/10"
+                      type="text"
+                      value={value.content}
+                      onChange={(event) => {
+                        onChangeChatLog(index, event.target.value);
+                      }}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           )}
