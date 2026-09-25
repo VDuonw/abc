@@ -123,7 +123,7 @@ export const MessageInputContainer = ({
             <button
               onClick={handleClickMicButton}
               disabled={isChatProcessing}
-              className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl disabled:opacity-40 disabled:cursor-not-allowed ${
+              className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed ${
                 isMicRecording
                   ? "bg-red-500 hover:bg-red-600 animate-pulse-red ring-4 ring-red-400/50 scale-110"
                   : "bg-emerald-500 hover:bg-emerald-400 hover:shadow-emerald-500/30 hover:shadow-2xl active:scale-95"
@@ -152,7 +152,7 @@ export const MessageInputContainer = ({
             <button
               onClick={onHint}
               disabled={isChatProcessing}
-              className="w-16 h-16 rounded-full bg-amber-500 hover:bg-amber-400 active:scale-95 flex items-center justify-center transition-all duration-300 shadow-xl hover:shadow-amber-500/30 hover:shadow-2xl disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-20 h-20 rounded-full bg-amber-500 hover:bg-amber-400 active:scale-95 flex items-center justify-center transition-all duration-300 shadow-lg hover:shadow-amber-500/30 hover:shadow-2xl disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {/* Lightbulb SVG icon */}
               <svg

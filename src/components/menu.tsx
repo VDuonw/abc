@@ -76,16 +76,16 @@ export const Menu = ({
     <>
       {/* Top-right gear button */}
       <div className="fixed top-4 left-4 z-30">
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           {/* Gear Settings button */}
           <button
             onClick={() => setShowSettings(true)}
-            className="w-11 h-11 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 backdrop-blur-md flex items-center justify-center text-white/70 hover:text-white transition-all duration-200 shadow-lg hover:shadow-xl group"
+            className="w-14 h-14 rounded-2xl bg-white/10 hover:bg-white/25 border border-white/20 backdrop-blur-md flex items-center justify-center text-white/80 hover:text-white transition-all duration-200 shadow-xl hover:shadow-2xl hover:scale-105 group"
             title="Cài đặt"
           >
             <svg
-              width="20"
-              height="20"
+              width="26"
+              height="26"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -103,12 +103,12 @@ export const Menu = ({
           {chatLog.length > 0 && (
             <button
               onClick={() => setShowChatLog(!showChatLog)}
-              className={`w-11 h-11 rounded-xl border border-white/15 backdrop-blur-md flex items-center justify-center text-white/70 hover:text-white transition-all duration-200 shadow-lg hover:shadow-xl ${
-                showChatLog ? "bg-white/20" : "bg-white/10 hover:bg-white/20"
+              className={`w-14 h-14 rounded-2xl border border-white/20 backdrop-blur-md flex items-center justify-center text-white/80 hover:text-white transition-all duration-200 shadow-xl hover:shadow-2xl hover:scale-105 ${
+                showChatLog ? "bg-white/20" : "bg-white/10 hover:bg-white/25"
               }`}
               title="Lịch sử hội thoại"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
             </button>

@@ -259,38 +259,14 @@ export default function Home() {
     setIsHintOpen(false);
   }, []);
 
-  // Render UI – hide main chat when game ended
   const inGame = gameResult === null;
-
   return (
     <div className="font-M_PLUS_2">
       <Meta />
       <Introduction openAiKey={openAiKey} onChangeAiKey={setOpenAiKey} />
       <VrmViewer />
 
-      {/* ===== Visual Novel Dialog Box (NPC subtitle) ===== */}
-      {assistantMessage && inGame && (
-        <div className="fixed bottom-36 left-1/2 -translate-x-1/2 z-10 w-11/12 max-w-2xl animate-fade-in pointer-events-none">
-          <div className="relative bg-black/80 backdrop-blur-sm border border-white/10 rounded-2xl p-5 shadow-2xl">
-            {/* Character name badge */}
-            <div className="absolute -top-3 left-5">
-              <span className="inline-block bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-extrabold px-4 py-1 rounded-full shadow-lg">
-                山田部長
-              </span>
-            </div>
-            {/* Dialog text */}
-            <div className="mt-1 text-white text-sm leading-relaxed font-medium">
-              {assistantMessage}
-            </div>
-            {/* Decorative bottom dots (typing indicator style) */}
-            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
-              <div className="w-2 h-2 rounded-full bg-white/30" />
-              <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Removed redundant subtitle UI */}
 
       {/* Game UI */}
       {inGame ? (
